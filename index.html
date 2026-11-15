@@ -220,7 +220,7 @@
   </nav>
 
   <script>
-    const API_URL = "https://workers.dev";
+    const API_URL = "https://mindsnap-api.makschaliy2003.workers.dev";
     const tg = window.Telegram?.WebApp;
     if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor('#09090b'); tg.setBackgroundColor('#09090b'); }
 
@@ -266,7 +266,7 @@
       } catch (e) {
         document.getElementById('loader').classList.remove('active');
         switchScreen('create');
-        showToast('Не удалось связаться с ИИ, попробуй еще раз');
+        showToast('Ошибка: ' + e.message);
       }
     }
 
