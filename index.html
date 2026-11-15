@@ -90,8 +90,6 @@
       border-radius: var(--radius-md); padding: 12px 10px; cursor: pointer; display: flex; flex-direction: column; gap: 8px;
     }
     .mode-card.selected { background: rgba(139, 92, 246, 0.12); border-color: var(--accent-primary); box-shadow: 0 0 20px rgba(139, 92, 246, 0.15); }
-    .mode-icon { width: 28px; height: 28px; border-radius: 8px; background: rgba(255, 255, 255, 0.05); display: flex; align-items: center; justify-content: center; color: var(--text-secondary); }
-    .mode-card.selected .mode-icon { background: var(--accent-primary); color: #fff; }
     .mode-title { font-size: 13px; font-weight: 600; color: var(--text-primary); }
     .mode-desc { font-size: 11px; color: var(--text-muted); line-height: 1.3; }
     .btn-primary {
@@ -113,14 +111,13 @@
     .quiz-option { width: 100%; text-align: left; padding: 13px 14px; border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border-subtle); color: var(--text-primary); font-family: inherit; font-size: 14px; margin-bottom: 8px; cursor: pointer; }
     .quiz-option.correct { background: rgba(16, 185, 129, 0.15); border-color: var(--success); color: #6ee7b7; }
     .quiz-option.wrong { background: rgba(239, 68, 68, 0.15); border-color: #ef4444; color: #fca5a5; }
-    .loader-box { display: none; text-align: center; padding: 36px 16px; }
+    .loader-box { display: none; text-align: center; padding: 48px 16px; }
     .loader-box.active { display: block; }
     .spinner { width: 36px; height: 36px; border: 3px solid rgba(139, 92, 246, 0.2); border-top-color: var(--accent-primary); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 14px; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(9, 9, 11, 0.88); backdrop-filter: blur(20px); border-top: 1px solid var(--border-subtle); display: flex; justify-content: space-around; padding: 10px 12px 18px; z-index: 50; }
     .nav-item { display: flex; flex-direction: column; align-items: center; gap: 4px; background: none; border: none; color: var(--text-muted); font-family: inherit; font-size: 11px; font-weight: 500; cursor: pointer; }
     .nav-item.active { color: var(--text-primary); }
-    .nav-item.active svg { color: var(--accent-primary); }
     .toast { position: fixed; top: 16px; left: 50%; transform: translateX(-50%) translateY(-80px); background: #18181b; border: 1px solid var(--border-glow); color: var(--text-primary); padding: 10px 16px; border-radius: 99px; font-size: 13px; font-weight: 500; z-index: 100; transition: transform 0.3s ease; }
     .toast.show { transform: translateX(-50%) translateY(0); }
   </style>
@@ -147,9 +144,9 @@
 
     <main id="screen-create" class="screen active">
       <h1 class="hero-title">Разбери любую тему за 3 минуты</h1>
-      <p class="hero-subtitle">Вставь текст параграфа или тему — алгоритм соберет персональный план для пересказа без зубрежки.</p>
+      <p class="hero-subtitle">Вставь текст параграфа или тему — нейросеть соберет персональный план для пересказа.</p>
       <div class="card">
-        <textarea id="topic-input" class="topic-textarea" placeholder="Вставь сюда текст из учебника или напиши тему..."></textarea>
+        <textarea id="topic-input" class="topic-textarea" placeholder="Напиши любую тему или вставь текст из учебника..."></textarea>
         <div class="input-toolbar">
           <div style="display: flex; gap: 8px;">
             <button class="tool-btn" onclick="insertDemoText()">Пример текста</button>
@@ -178,7 +175,8 @@
 
     <div id="loader" class="loader-box">
       <div class="spinner"></div>
-      <div style="font-weight: 600; font-size: 16px;">Нейросеть строит карту памяти...</div>
+      <div style="font-weight: 600; font-size: 16px; margin-bottom: 4px;">Нейросеть анализирует тему...</div>
+      <div style="font-size: 13px; color: var(--text-secondary);">Обычно это занимает 3–6 секунд</div>
     </div>
 
     <section id="screen-result" class="screen">
@@ -199,6 +197,7 @@
         <p style="font-size: 14px; font-weight: 600; margin-bottom: 12px;" id="quiz-question"></p>
         <div id="quiz-options"></div>
       </div>
+      <button class="btn-secondary" onclick="copyCheatSheet()">Скопировать шпаргалку</button>
     </section>
 
     <section id="screen-pro" class="screen">
@@ -221,35 +220,67 @@
   </nav>
 
   <script>
+    const API_URL = "https://workers.dev";
     const tg = window.Telegram?.WebApp;
     if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor('#09090b'); tg.setBackgroundColor('#09090b'); }
+
     let selectedMode = 'story', xp = 120, credits = 3;
     const topicInput = document.getElementById('topic-input');
     topicInput.addEventListener('input', () => { document.getElementById('char-count').textContent = topicInput.value.length + ' симв.'; });
+
     function haptic(t = 'light') { if (tg?.HapticFeedback) tg.HapticFeedback.impactOccurred(t); }
-    function showToast(m) { haptic('light'); const el = document.getElementById('toast'); el.textContent = m; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2200); }
+    function showToast(m) { haptic('light'); const el = document.getElementById('toast'); el.textContent = m; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2500); }
     function selectMode(el) { haptic('light'); document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected')); el.classList.add('selected'); selectedMode = el.dataset.mode; }
-    function insertDemoText() { haptic('light'); topicInput.value = "Фотосинтез — это процесс образования органических веществ из углекислого газа и воды на свету при участии хлорофилла."; document.getElementById('char-count').textContent = topicInput.value.length + ' симв.'; }
+    function insertDemoText() { haptic('light'); topicInput.value = "Почему началось Великое переселение народов и как оно изменило карту Европы?"; document.getElementById('char-count').textContent = topicInput.value.length + ' симв.'; }
     function switchScreen(n) { haptic('light'); document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active')); document.getElementById('screen-' + n).classList.add('active'); document.getElementById('nav-' + n).classList.add('active'); }
-    function generateSnap() {
-      if (!topicInput.value.trim()) { showToast('Нажми «Пример текста» или введи тему'); return; }
-      haptic('medium'); document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById('loader').classList.add('active');
-      setTimeout(() => {
-        document.getElementById('loader').classList.remove('active');
+
+    async function generateSnap() {
+      const text = topicInput.value.trim();
+      if (!text) { showToast('Введи тему или нажми «Пример текста»'); return; }
+      if (credits <= 0) { showToast('Бесплатные попытки закончились'); switchScreen('pro'); return; }
+
+      haptic('medium');
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('loader').classList.add('active');
+
+      try {
+        const res = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, mode: selectedMode })
+        });
+        const data = await res.json();
+        if (!data.summary) throw new Error('Ошибка ответа ИИ');
+
         const names = { story: 'Режим: Ассоциации', logic: 'Режим: Схема', game: 'Режим: Гейминг' };
         document.getElementById('result-mode-label').textContent = names[selectedMode];
-        document.getElementById('result-summary').textContent = selectedMode === 'game' ? "Лист растения — мини-фабрика по крафту энергии: берет CO2 и воду, включает солнечную панель (хлорофилл) и крафтит глюкозу, выбрасывая кислород." : "Зеленый повар Хлорофилл смешивает воду и углекислый газ под солнцем, получает энергию для растения и выпускает кислород.";
-        document.getElementById('result-anchors').innerHTML = ["Входные ресурсы: углекислый газ и вода.", "Двигатель: солнечный свет + хлорофилл.", "Результат: питание для растения и кислород."].map((t, i) => `<li class="anchor-item"><span class="anchor-num">${i+1}</span><span>${t}</span></li>`).join('');
-        document.getElementById('quiz-question').textContent = "Без чего фотосинтез не запустится?";
-        document.getElementById('quiz-options').innerHTML = [{t:"Без света и хлорофилла",c:true},{t:"Без кислорода",c:false}].map(o => `<button class="quiz-option" onclick="checkAnswer(this,${o.c})">${o.t}</button>`).join('');
-        if (credits > 0) { credits--; document.getElementById('credits-counter').textContent = credits + ' бесплатно'; }
+        document.getElementById('result-summary').textContent = data.summary;
+        document.getElementById('result-anchors').innerHTML = (data.anchors || []).map((t, i) => `<li class="anchor-item"><span class="anchor-num">${i+1}</span><span>${t}</span></li>`).join('');
+        document.getElementById('quiz-question').textContent = data.question || "Проверь себя:";
+        document.getElementById('quiz-options').innerHTML = (data.options || []).map(o => `<button class="quiz-option" onclick="checkAnswer(this,${o.correct})">${o.text}</button>`).join('');
+
+        credits--;
+        document.getElementById('credits-counter').textContent = credits + ' бесплатно';
+        document.getElementById('loader').classList.remove('active');
         switchScreen('result');
-      }, 800);
+      } catch (e) {
+        document.getElementById('loader').classList.remove('active');
+        switchScreen('create');
+        showToast('Не удалось связаться с ИИ, попробуй еще раз');
+      }
     }
+
     function checkAnswer(btn, ok) {
-      if (btn.parentElement.dataset.done) return; btn.parentElement.dataset.done = "1";
+      if (btn.parentElement.dataset.done) return;
+      btn.parentElement.dataset.done = "1";
       if (ok) { haptic('heavy'); btn.classList.add('correct'); xp += 25; document.getElementById('xp-counter').textContent = xp + ' XP'; showToast('Верно! +25 XP'); }
-      else { haptic('medium'); btn.classList.add('wrong'); showToast('Ошибка! Нужны свет и хлорофилл'); }
+      else { haptic('medium'); btn.classList.add('wrong'); showToast('Не совсем так, посмотри конспект выше'); }
+    }
+
+    function copyCheatSheet() {
+      const s = document.getElementById('result-summary').textContent;
+      navigator.clipboard?.writeText("MindSnap AI:\n" + s);
+      showToast('Шпаргалка скопирована!');
     }
   </script>
 </body>
