@@ -250,7 +250,7 @@
           body: JSON.stringify({ text, mode: selectedMode })
         });
         const data = await res.json();
-        if (!data.summary) throw new Error('Ошибка ответа ИИ');
+        if (!res.ok || !data.summary) throw new Error(data.error || ('Код сервера: ' + res.status));
 
         const names = { story: 'Режим: Ассоциации', logic: 'Режим: Схема', game: 'Режим: Гейминг' };
         document.getElementById('result-mode-label').textContent = names[selectedMode];
@@ -263,10 +263,12 @@
         document.getElementById('credits-counter').textContent = credits + ' бесплатно';
         document.getElementById('loader').classList.remove('active');
         switchScreen('result');
-      } catch (e) {
+        } catch (e) {
         document.getElementById('loader').classList.remove('active');
         switchScreen('create');
-        showToast('Ошибка: ' + e.message);
+        alert('Причина ошибки: ' + e.message);
+      }
+
       }
     }
 
